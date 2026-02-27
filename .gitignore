@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+.agents/
+*_probe.cjs
+qa_v1*.cjs
+debug_*.cjs
+*_test.cjs
+*.swift
+flavor_dump.cjs
+active_app.cjs
+test_jxa.cjs
