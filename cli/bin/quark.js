@@ -11,6 +11,29 @@ const pidFile = path.join(__dirname, '../quark.pid');
 const logFile = path.join(__dirname, '../quark.log');
 
 switch (command) {
+  case 'run':
+    console.log(`
+      o-------o
+      | \\   / |
+      |   o   |
+      | /   \\ |
+      o-------o
+    `);
+    console.log('🚀 Starting Quark Daemon (Foreground Session)...');
+    console.log('💡 Press Ctrl+C to stop. Logs will appear below:');
+    require(daemonPath);
+    break;
+
+  case 'logs':
+    if (fs.existsSync(logFile)) {
+      console.log('📜 Tailing Quark logs... (Press Ctrl+C to exit)');
+      const tail = spawn('tail', ['-f', logFile], { stdio: 'inherit' });
+      tail.on('exit', () => process.exit(0));
+    } else {
+      console.log('⚠️ No log file found at ' + logFile);
+    }
+    break;
+
   case 'start':
     console.log(`
       o-------o
@@ -64,7 +87,7 @@ switch (command) {
     console.log(`\n🌌 Quark Status`);
     console.log(`----------------`);
     console.log(`Manual Session: ${isRunning ? '🟢 Running' : '🔴 Stopped'}`);
-    
+
     // Check OS Service Status
     const os = require('os');
     const platform = os.platform();
@@ -92,7 +115,7 @@ switch (command) {
     } catch (e) {
       // Ignore errors from execSync if service is not running
     }
-    
+
     console.log(`OS Service:     ${serviceRunning ? '🟢 Installed & Running' : '🔴 Not Installed / Stopped'}`);
     console.log(`\nLog file: ${logFile}`);
     if (!serviceRunning) {
@@ -112,6 +135,8 @@ switch (command) {
 Usage:
   quark start      Start the daemon in the background (current session)
   quark stop       Stop the manually started daemon
+  quark run        Start the daemon in the foreground (live logs)
+  quark logs       Tail the background daemon logs
   quark install    Install Quark as a native OS background service (Auto-start on boot)
   quark uninstall  Remove the native OS background service
   quark status     Check daemon status

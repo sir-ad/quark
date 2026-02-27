@@ -1,31 +1,53 @@
 const { marked } = require('marked');
 
-function isExcelTSV(text) {
-  const lines = text.trim().split('\n').filter(l => l.trim().length > 0);
-  if (lines.length < 2) return false;
-  // Relaxed TSV detection for ragged lines resulting from sparse spreadsheet cells
-  const linesWithTabs = lines.filter(l => l.includes('\t')).length;
-  return linesWithTabs > 0 && linesWithTabs === lines.length;
+function analyzeGridProperties(text, delimiter) {
+  const lines = text.split('\n').map(l => l.trim('\r'));
+  if (lines.length < 2) return { isGrid: false };
+
+  const rows = lines.map(l => l.split(delimiter));
+  const counts = rows.map(r => r.length);
+
+  // A perfect grid has all rows equal length
+  const maxCols = Math.max(...counts);
+  const minCols = Math.min(...counts);
+
+  // Mathematical sparse matrix inference: 
+  // If the delimiter appears consistently across multiple lines, it's a grid.
+  // For TSV, even a single tab in multiple lines strongly implies a spreadsheet payload.
+  let isGrid = false;
+  if (delimiter === '\t') {
+    const linesWithTabs = lines.filter(l => l.includes('\t')).length;
+    // If at least 50% of lines have tabs, or we have distinct multi-column structure
+    isGrid = (linesWithTabs > 0 && linesWithTabs >= (lines.length / 2)) || (maxCols > 1 && counts[0] === counts[1]);
+  } else {
+    isGrid = maxCols > 2 && minCols === maxCols;
+  }
+
+  return { isGrid, rows, cols: maxCols };
 }
 
-function isCSV(text) {
-  const lines = text.trim().split('\n').filter(l => l.trim().length > 0);
-  if (lines.length < 2) return false;
-  const commas = lines[0].split(',').length;
-  return commas > 2 && lines.every(l => l.split(',').length === commas);
+function isExcelTSV(text) {
+  return analyzeGridProperties(text, '\t').isGrid;
 }
 
 function convertToHTML(text, delimiter) {
-  const rows = text.trim().split('\n').filter(l => l.trim().length > 0).map(r => r.split(delimiter));
+  const { rows, cols } = analyzeGridProperties(text, delimiter);
   let html = '<table style="border-collapse: collapse; font-family: sans-serif; font-size: 14px;">\n';
   rows.forEach((row, i) => {
+    // Drop completely empty trailing rows
+    if (i === rows.length - 1 && row.join('').trim() === '') return;
+
     html += '  <tr>\n';
-    row.forEach(cell => {
+
+    // Pad sparse rows with empty cells to maintain grid geometry
+    for (let j = 0; j < cols; j++) {
+      const cell = row[j] || '';
       const tag = i === 0 ? 'th' : 'td';
       const bg = i === 0 ? 'background-color: #f3f2f1;' : '';
       const style = `border: 1px solid #d1d1d1; padding: 6px 12px; ${bg}`;
       html += `    <${tag} style="${style}">${cell.trim()}</${tag}>\n`;
-    });
+    }
+
     html += '  </tr>\n';
   });
   html += '</table>';
@@ -216,7 +238,7 @@ async function processClipboard(text, originalHtml) {
   }
 
   // 4. CSV to HTML
-  if (isCSV(text) && !originalHtml) {
+  if (!originalHtml && analyzeGridProperties(text, ',').isGrid) {
     return { changed: true, text: text, html: convertToHTML(text, ',') };
   }
 

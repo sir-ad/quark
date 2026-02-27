@@ -9,9 +9,16 @@ function read() {
     if (platform === 'darwin') {
       text = execSync('pbpaste', { encoding: 'utf8' }).toString();
       try {
-        const hex = execSync(`osascript -e 'the clipboard as "HTML"' 2>/dev/null`, { encoding: 'utf8' });
-        const match = hex.match(/«data HTML([0-9A-F]+)»/i);
-        if (match) html = Buffer.from(match[1], 'hex').toString('utf8');
+        const jxa = `
+          ObjC.import("AppKit");
+          var pb = $.NSPasteboard.generalPasteboard;
+          var html = pb.stringForType("public.html");
+          if (html) { html.js; } else { ""; }
+        `;
+        const raw = execSync(`osascript -l JavaScript -e '${jxa.replace(/\n/g, ' ')}' 2>/dev/null`, { encoding: 'utf8' });
+        if (raw && raw.trim() !== '') {
+          html = raw;
+        }
       } catch (e) { }
     } else if (platform === 'linux') {
       text = execSync('xclip -selection clipboard -o', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toString();
