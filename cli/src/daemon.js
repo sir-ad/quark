@@ -6,6 +6,8 @@ const http = require('http');
 console.log('🌌 Quark Daemon Started at', new Date().toISOString());
 
 let lastClip = clipboard.read();
+let lastActiveApp = clipboard.getActiveApp();
+let lastProcessedResult = null;
 let isSyncingFromNetwork = false;
 
 // Initialize P2P Network
@@ -101,19 +103,31 @@ const pollInterval = setInterval(async () => {
       hasHtml: !!currentClip.html
     });
 
-    // Process through transformers
-    const result = await transformers.processClipboard(currentClip.text, currentClip.html);
-
-    if (result.changed) {
-      logEvent('TRANSFORM', result.skipReason || 'Applying transformations');
-      writeGuard = true;
-      if (result.html) {
-        clipboard.writeHtml(result.html, result.text);
-      } else {
-        clipboard.writeText(result.text);
+    const activeApp = clipboard.getActiveApp();
+    if (activeApp !== lastActiveApp) {
+      logEvent('INFO', `Active App changed: ${activeApp}`);
+      // JIT Injection: If we have a cached result, re-optimize for the new app
+      if (lastProcessedResult) {
+        writeGuard = true;
+        injectForTarget(activeApp, lastProcessedResult);
       }
-      lastClip = clipboard.read(); // Update to OS state
-      network.broadcast(result.text, result.html);
+      lastActiveApp = activeApp;
+    }
+
+    // Process through transformers with context
+    const result = await transformers.processClipboard(currentClip.text, currentClip.html, activeApp);
+
+    if (result.changed || result.markdown) {
+      lastProcessedResult = result;
+
+      if (result.changed) {
+        logEvent('TRANSFORM', result.skipReason || 'Applying transformations');
+        writeGuard = true;
+        injectForTarget(activeApp, result);
+
+        lastClip = clipboard.read(); // Update to OS state
+        network.broadcast(result.text, result.html);
+      }
     } else {
       if (result.skipReason) {
         logEvent('INFO', `Skipped: ${result.skipReason}`);
@@ -123,6 +137,24 @@ const pollInterval = setInterval(async () => {
     }
   }
 }, 500);
+
+function injectForTarget(app, result) {
+  const markdownApps = ['Obsidian', 'Visual Studio Code', 'Cursor', 'Linear', 'GitHub', 'Teams'];
+  const isMarkdownTarget = markdownApps.some(m => app && app.includes(m));
+
+  if (isMarkdownTarget && result.markdown) {
+    // For Markdown-friendly apps, we prioritize Markdown in the plain-text flavor
+    // This allows pasting into Obsidian to get MD, while keeping HTML for table support if they want it
+    clipboard.writeHtml(result.html, result.markdown);
+  } else {
+    // Standard injection
+    if (result.html) {
+      clipboard.writeHtml(result.html, result.text);
+    } else {
+      clipboard.writeText(result.text);
+    }
+  }
+}
 
 // Graceful Shutdown
 function shutdown() {

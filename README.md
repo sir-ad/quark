@@ -30,6 +30,7 @@ The operating system clipboard is fundamentally broken and stuck in the past:
 - **Heals** broken PDF text automatically.
 - **Strips** tracking parameters from URLs.
 - **Transforms** raw Excel data, Markdown, and LaTeX into clean, rich HTML.
+- **Omni-Context Engine**: Detects the active target app (Notion, Obsidian, VS Code, Pages) and dynamically shifts clipboard flavors (Markdown, HTML, RTF) to ensure flawless structure on every paste.
 - **Syncs** across your Mac, Windows, and Linux machines instantly via P2P.
 - **Exposes** your clipboard to local AI models via MCP.
 

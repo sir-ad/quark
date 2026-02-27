@@ -93,4 +93,15 @@ function writeText(text) {
   } catch (e) { console.error('Error setting clipboard text:', e.message); }
 }
 
-module.exports = { read, writeHtml, writeText };
+function getActiveApp() {
+  try {
+    const platform = os.platform();
+    if (platform === 'darwin') {
+      const jxa = `ObjC.import("AppKit"); $.NSWorkspace.sharedWorkspace.frontmostApplication.localizedName.js;`;
+      return execSync(`osascript -l JavaScript -e '${jxa}' 2>/dev/null`, { encoding: 'utf8' }).trim();
+    }
+  } catch (e) { }
+  return null;
+}
+
+module.exports = { read, writeHtml, writeText, getActiveApp };

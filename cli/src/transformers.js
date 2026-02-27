@@ -178,9 +178,66 @@ function normalizeShouting(text) {
   return text;
 }
 
+function convertToMarkdown(html) {
+  if (!html) return '';
+
+  // Minimalist HTML to Markdown converter
+  let md = html
+    .replace(/<style([\s\S]*?)<\/style>/gi, '')
+    .replace(/<head([\s\S]*?)<\/head>/gi, '')
+    .replace(/<(h[1-6])(.*?)>(.*?)<\/\1>/gi, (m, h, a, c) => `${'#'.repeat(parseInt(h[1]))} ${c}\n\n`)
+    .replace(/<p(.*?)>(.*?)<\/p>/gi, '$2\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<b(.*?)>(.*?)<\/b>/gi, '**$2**')
+    .replace(/<strong(.*?)>(.*?)<\/strong>/gi, '**$2**')
+    .replace(/<i(.*?)>(.*?)<\/i>/gi, '*$2*')
+    .replace(/<em(.*?)>(.*?)<\/em>/gi, '*$2*')
+    .replace(/<a.*?href="(.*?)".*?>(.*?)<\/a>/gi, '[$2]($1)')
+    .replace(/<ul>([\s\S]*?)<\/ul>/gi, (m, c) => c.replace(/<li(.*?)>(.*?)<\/li>/gi, '- $2\n') + '\n')
+    .replace(/<ol>([\s\S]*?)<\/ol>/gi, (m, c) => {
+      let i = 1;
+      return c.replace(/<li(.*?)>(.*?)<\/li>/gi, () => `${i++}. $2\n`) + '\n';
+    });
+
+  // Table handling
+  md = md.replace(/<table([\s\S]*?)<\/table>/gi, (m, c) => {
+    const rows = [];
+    const trMatches = c.match(/<tr([\s\S]*?)<\/tr>/gi);
+    if (!trMatches) return '';
+
+    trMatches.forEach(tr => {
+      const cells = [];
+      const tdMatches = tr.match(/<(td|th)([\s\S]*?)<\/\1>/gi);
+      if (tdMatches) {
+        tdMatches.forEach(td => {
+          cells.push(td.replace(/<(?:.|\n)*?>/gm, '').trim().replace(/\|/g, '\\|'));
+        });
+        rows.push('| ' + cells.join(' | ') + ' |');
+      }
+    });
+
+    if (rows.length === 0) return '';
+
+    // Header separator
+    const colCount = rows[0].split('|').length - 2;
+    const separator = '| ' + Array(colCount).fill('---').join(' | ') + ' |';
+    rows.splice(1, 0, separator);
+
+    return rows.join('\n') + '\n\n';
+  });
+
+  // Strip remaining tags
+  return md.replace(/<(?:.|\n)*?>/gm, '').trim();
+}
+
 // The master pipeline
-async function processClipboard(text, originalHtml) {
-  let result = { changed: false, text: text, html: originalHtml };
+async function processClipboard(text, originalHtml, targetApp = null) {
+  let result = { changed: false, text: text, html: originalHtml, markdown: null };
+
+  // Calculate markdown if HTML exists
+  if (originalHtml) {
+    result.markdown = convertToMarkdown(originalHtml);
+  }
 
   // PRESERVATION HEURISTIC: Yield if high-quality HTML already exists
   if (originalHtml) {
@@ -196,7 +253,7 @@ async function processClipboard(text, originalHtml) {
 
     const hasStructure = forensicMarkers.some(marker => originalHtml.toLowerCase().includes(marker));
     if (hasStructure) {
-      return { changed: false, text: text, html: originalHtml, skipReason: 'Forensic structure detected' };
+      return { changed: false, text: text, html: originalHtml, markdown: result.markdown, skipReason: 'Forensic structure detected' };
     }
   }
 
@@ -223,37 +280,54 @@ async function processClipboard(text, originalHtml) {
   // 1. URL Tracking Stripper
   if (text.startsWith('http') && text.includes('utm_')) {
     const clean = stripTrackingParams(text);
-    if (clean !== text) return { changed: true, text: clean, html: null };
+    if (clean !== text) return { changed: true, text: clean, html: null, markdown: clean };
   }
 
   // 2. JSON Prettier
   if ((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))) {
     const pretty = prettifyJSON(text);
-    if (pretty !== text && pretty.includes('\n')) return { changed: true, text: pretty, html: null };
+    if (pretty !== text && pretty.includes('\n')) return { changed: true, text: pretty, html: null, markdown: `\`\`\`json\n${pretty}\n\`\`\`` };
   }
 
   // 3. Excel TSV to HTML
   if (isExcelTSV(text)) {
-    return { changed: true, text: text, html: convertToHTML(text, '\t') };
+    const tableHtml = convertToHTML(text, '\t');
+    return {
+      changed: true,
+      text: text,
+      html: tableHtml,
+      markdown: convertToMarkdown(tableHtml)
+    };
   }
 
   // 4. CSV to HTML
   if (!originalHtml && analyzeGridProperties(text, ',').isGrid) {
-    return { changed: true, text: text, html: convertToHTML(text, ',') };
+    const tableHtml = convertToHTML(text, ',');
+    return {
+      changed: true,
+      text: text,
+      html: tableHtml,
+      markdown: convertToMarkdown(tableHtml)
+    };
   }
 
   // 5. Full Markdown & Math to HTML
   const mathResult = renderMathFormulas(text);
   if ((isMarkdown(text) || mathResult.hasMath) && !originalHtml) {
     const html = await convertMarkdownToHTML(text);
-    return { changed: true, text: text, html: html };
+    return {
+      changed: true,
+      text: text,
+      html: html,
+      markdown: text // If input was MD, use it
+    };
   }
 
   // 6. PDF Line Breaks (Only apply if it looks like a broken paragraph, heuristic)
   if (text.length > 100 && text.split('\n').length > 3 && !text.includes('\t') && !originalHtml) {
     const fixed = fixPDFLineBreaks(text);
     if (fixed !== text && fixed.length < text.length) {
-      return { changed: true, text: fixed, html: null };
+      return { changed: true, text: fixed, html: null, markdown: fixed };
     }
   }
 
