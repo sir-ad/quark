@@ -1,10 +1,17 @@
-# 🌌 Quark
+<div align="center">
+  <img src="public/logo.svg" width="80" alt="Quark Logo" />
+  
+  # 🌌 Quark
+  
+  ### The AI-Native, Cross-Platform Clipboard Micro-Daemon.
+  
+  [![npm version](https://img.shields.io/npm/v/@quark.clip/quark?color=black&style=flat-square)](https://www.npmjs.com/package/@quark.clip/quark)
+  [![license](https://img.shields.io/github/license/sir-ad/quark?color=black&style=flat-square)](LICENSE)
+  [![stars](https://img.shields.io/github/stars/sir-ad/quark?color=black&style=flat-square)](https://github.com/sir-ad/quark/stargazers)
+  [![MCP](https://img.shields.io/badge/MCP-Compatible-blue?style=flat-square&color=black)](https://modelcontextprotocol.io)
 
-**The AI-Native, Cross-Platform Clipboard Micro-Daemon.**
-
-© 2026 Adarsh Agrahari. All Rights Reserved.
-
-Quark is a headless, zero-configuration background service that orbits your operating system's clipboard. It silently fixes your copy-paste nightmares, syncs your clipboard across devices seamlessly, and exposes your clipboard directly to local AI models via the Model Context Protocol (MCP).
+  Quark is a headless, zero-configuration background service that orbits your operating system's clipboard. It silently fixes your copy-paste nightmares, syncs your clipboard across devices seamlessly, and exposes your clipboard directly to local AI models.
+</div>
 
 ---
 
@@ -119,4 +126,6 @@ Please read `CONTRIBUTING.md` for details on our code of conduct, and the proces
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the `LICENSE` file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+© 2026 Adarsh Agrahari. All Rights Reserved.
