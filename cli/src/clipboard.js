@@ -9,17 +9,20 @@ function read() {
     if (platform === 'darwin') {
       text = execSync('pbpaste', { encoding: 'utf8' }).toString();
       try {
-        const jxa = `
-          ObjC.import("AppKit");
-          var pb = $.NSPasteboard.generalPasteboard;
-          var html = pb.stringForType("public.html");
-          if (html) { html.js; } else { ""; }
-        `;
-        const raw = execSync(`osascript -l JavaScript -e '${jxa.replace(/\n/g, ' ')}' 2>/dev/null`, { encoding: 'utf8' });
+        const jxaRead = `
+ObjC.import("AppKit");
+var pb = $.NSPasteboard.generalPasteboard;
+var html = pb.stringForType("public.html");
+var res = (html && html.js) ? html.js : "";
+res;
+        `.trim();
+        const raw = execSync('osascript -l JavaScript -', { input: jxaRead, encoding: 'utf8' });
         if (raw && raw.trim() !== '') {
-          html = raw;
+          html = raw.trim();
         }
-      } catch (e) { }
+      } catch (e) {
+        // Fallback to plain text if HTML read fails
+      }
     } else if (platform === 'linux') {
       text = execSync('xclip -selection clipboard -o', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toString();
       try {
@@ -48,19 +51,25 @@ function writeHtml(html, plainText) {
   try {
     const platform = os.platform();
     if (platform === 'darwin') {
-      // Use JXA to write both public.html and public.utf8-plain-text to NSPasteboard
-      // This ensures Electron apps (Teams, Slack) can read the HTML correctly
-      const escapedHtml = html.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
-      const escapedText = plainText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
-      const jxa = `
-        ObjC.import("AppKit");
-        var pb = $.NSPasteboard.generalPasteboard;
-        pb.clearContents;
-        pb.setStringForType($('${escapedHtml}'), $('public.html'));
-        pb.setStringForType($('${escapedText}'), $('public.utf8-plain-text'));
-        "ok";
-      `;
-      execSync(`osascript -l JavaScript -e '${jxa.replace(/\n/g, ' ')}' 2>/dev/null`);
+      // CRITICAL: We must NOT pass HTML as inline shell arg — angle brackets crash the shell.
+      // Instead, we use stdin piping and environment variables to pass the data safely.
+      const jxaScript = `
+ObjC.import("AppKit");
+var env = $.NSProcessInfo.processInfo.environment.js;
+var htmlStr = env["QUARK_HTML"] || "";
+var textStr = env["QUARK_TEXT"] || "";
+
+var pb = $.NSPasteboard.generalPasteboard;
+pb.clearContents;
+pb.setStringForType($(htmlStr), $("public.html"));
+pb.setStringForType($(textStr), $("public.utf8-plain-text"));
+"ok";
+      `.trim();
+      execSync('osascript -l JavaScript -', {
+        input: jxaScript,
+        env: { ...process.env, QUARK_HTML: html, QUARK_TEXT: plainText },
+        stdio: ['pipe', 'ignore', 'ignore']
+      });
     } else if (platform === 'linux') {
       execSync('xclip -selection clipboard -t text/html', { input: html, stdio: ['pipe', 'ignore', 'ignore'] });
     } else if (platform === 'win32') {
