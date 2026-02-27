@@ -12,7 +12,7 @@ function Home() {
   const [copied, setCopied] = useState(false);
 
   const copyCommand = async () => {
-    await navigator.clipboard.writeText('npx @quark.clip/quark install-service');
+    await navigator.clipboard.writeText('npx -y @quark.clip/quark install-service');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -67,7 +67,7 @@ function Home() {
           </pre>
           <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
             <code className="font-mono text-sm text-zinc-800 bg-white px-3 py-1.5 rounded-md border border-zinc-200 shadow-sm">
-              npx @quark.clip/quark install-service
+              npx -y @quark.clip/quark install-service
             </code>
             <button
               onClick={copyCommand}
