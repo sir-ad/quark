@@ -1,0 +1,23 @@
+{
+  "name": "quark-daemon",
+  "version": "1.0.0",
+  "description": "AI-native cross-platform clipboard micro-daemon",
+  "main": "src/daemon.js",
+  "bin": {
+    "quark": "bin/quark.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "bonjour-service": "^1.2.1",
+    "marked": "^17.0.3",
+    "ws": "^8.16.0"
+  },
+  "scripts": {
+    "start": "node bin/quark.js start",
+    "stop": "node bin/quark.js stop",
+    "install-service": "node bin/quark.js install",
+    "mcp": "node bin/quark.js mcp"
+  },
+  "author": "Adarsh Agrahari",
+  "license": "MIT"
+}

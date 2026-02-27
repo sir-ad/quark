@@ -1,0 +1,5 @@
+{
+  "name": "Quark",
+  "description": "An AI-native, cross-platform clipboard micro-daemon with MCP server capabilities.",
+  "requestFramePermissions": []
+}

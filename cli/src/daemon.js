@@ -1,0 +1,104 @@
+const clipboard = require('./clipboard');
+const transformers = require('./transformers');
+const network = require('./network');
+const http = require('http');
+
+console.log('🌌 Quark Daemon Started at', new Date().toISOString());
+
+let lastClip = clipboard.read();
+let isSyncingFromNetwork = false;
+
+// Initialize P2P Network
+network.init((remoteData) => {
+  isSyncingFromNetwork = true;
+  console.log('📥 Received clipboard from network peer');
+  if (remoteData.html) {
+    clipboard.writeHtml(remoteData.html, remoteData.text);
+  } else {
+    clipboard.writeText(remoteData.text);
+  }
+  lastClip = clipboard.read(); // Update local state
+  setTimeout(() => { isSyncingFromNetwork = false; }, 1000);
+});
+
+// Local HTTP Server for MCP Bridge
+// The MCP stdio process will call this to read/write clipboard
+const API_PORT = 14314;
+const server = http.createServer((req, res) => {
+  if (req.url === '/clipboard' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ text: clipboard.read().text }));
+  } else if (req.url === '/clipboard' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        if (data.text) {
+          clipboard.writeText(data.text);
+          lastClip = clipboard.read();
+          network.broadcast(data.text);
+        }
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true }));
+      } catch (e) {
+        res.writeHead(400);
+        res.end();
+      }
+    });
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
+server.listen(API_PORT, '127.0.0.1', () => {
+  console.log(`🧠 Local API for MCP Bridge listening on port ${API_PORT}`);
+});
+
+// Main Clipboard Polling Loop
+const pollInterval = setInterval(async () => {
+  if (isSyncingFromNetwork) return; // Don't re-process network syncs
+
+  const currentClip = clipboard.read();
+  if (currentClip.text && (currentClip.text !== lastClip.text || currentClip.html !== lastClip.html)) {
+    lastClip = currentClip;
+    
+    // Process through transformers
+    const result = await transformers.processClipboard(currentClip.text, currentClip.html);
+    
+    if (result.changed) {
+      console.log('✨ Transformed clipboard data');
+      if (result.html) {
+        clipboard.writeHtml(result.html, result.text);
+      } else {
+        clipboard.writeText(result.text);
+      }
+      lastClip = clipboard.read(); // Update to OS state
+      network.broadcast(result.text, result.html);
+    } else {
+      // No transformation, just broadcast raw text and html to peers
+      network.broadcast(currentClip.text, currentClip.html);
+    }
+  }
+}, 500);
+
+// Graceful Shutdown
+function shutdown() {
+  console.log('\n🛑 Shutting down Quark Daemon gracefully...');
+  clearInterval(pollInterval);
+  server.close(() => {
+    console.log('🧠 MCP Bridge API closed.');
+    process.exit(0);
+  });
+  
+  // Force exit if server takes too long
+  setTimeout(() => {
+    console.error('⚠️ Forced shutdown due to timeout.');
+    process.exit(1);
+  }, 3000);
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+process.on('SIGHUP', shutdown);
+
