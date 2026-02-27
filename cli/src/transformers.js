@@ -3,8 +3,9 @@ const { marked } = require('marked');
 function isExcelTSV(text) {
   const lines = text.trim().split('\n').filter(l => l.trim().length > 0);
   if (lines.length < 2) return false;
-  const tabs = lines[0].split('\t').length;
-  return tabs > 1 && lines.every(l => l.split('\t').length === tabs);
+  // Relaxed TSV detection for ragged lines resulting from sparse spreadsheet cells
+  const linesWithTabs = lines.filter(l => l.includes('\t')).length;
+  return linesWithTabs > 0 && linesWithTabs === lines.length;
 }
 
 function isCSV(text) {
@@ -166,9 +167,9 @@ async function processClipboard(text, originalHtml) {
       'data-sheets-userformat',
       'br-re-calc',
       'x-office-spreadsheet',
-      '<table>',
-      '<tbody>',
-      '<thead>'
+      '<table',
+      '<tbody',
+      '<thead'
     ];
 
     const hasStructure = forensicMarkers.some(marker => originalHtml.toLowerCase().includes(marker));
