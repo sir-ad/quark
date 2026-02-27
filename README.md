@@ -34,10 +34,10 @@ No `.exe` files. No `.dmg` files. Just pure, cross-platform JavaScript.
 
 ```bash
 # Run instantly without installing (Temporary Session)
-npx quark-daemon start
+npx @quark.clip/quark start
 
 # OR install globally as a background OS service
-npm install -g quark-daemon
+npm install -g @quark.clip/quark
 quark install
 ```
 
@@ -104,7 +104,7 @@ To give Claude Desktop access to your clipboard, add Quark to your `claude_deskt
   "mcpServers": {
     "quark": {
       "command": "npx",
-      "args": ["quark-daemon", "mcp"]
+      "args": ["-y", "@quark.clip/quark", "mcp"]
     }
   }
 }

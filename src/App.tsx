@@ -12,7 +12,7 @@ function Home() {
   const [copied, setCopied] = useState(false);
 
   const copyCommand = async () => {
-    await navigator.clipboard.writeText('npx quark-daemon install-service');
+    await navigator.clipboard.writeText('npx @quark.clip/quark install-service');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -59,7 +59,7 @@ function Home() {
         </h2>
         <div className="bg-[#fafafa] rounded-2xl p-8 md:p-12 border border-zinc-100">
           <pre className="font-mono text-xs text-zinc-300 mb-12 leading-tight tracking-widest select-none">
-{`      o-------o
+            {`      o-------o
       | \\   / |
       |   o   |
       | /   \\ |
@@ -67,9 +67,9 @@ function Home() {
           </pre>
           <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
             <code className="font-mono text-sm text-zinc-800 bg-white px-3 py-1.5 rounded-md border border-zinc-200 shadow-sm">
-              npx quark-daemon install-service
+              npx @quark.clip/quark install-service
             </code>
-            <button 
+            <button
               onClick={copyCommand}
               className="text-sm font-medium text-zinc-400 hover:text-black transition-colors"
             >
@@ -126,11 +126,11 @@ function Docs() {
           <p>quark acts as a model context protocol (mcp) server, allowing local ai agents like claude desktop or cursor to read and write to your clipboard.</p>
           <p>to connect claude desktop, add this to your <code className="bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-700 text-sm">claude_desktop_config.json</code>:</p>
           <pre className="bg-[#fafafa] p-6 rounded-xl border border-zinc-100 text-sm font-mono text-zinc-600 overflow-x-auto">
-{`{
+            {`{
   "mcpServers": {
     "quark": {
       "command": "npx",
-      "args": ["quark-daemon", "mcp"]
+      "args": ["-y", "@quark.clip/quark", "mcp"]
     }
   }
 }`}
@@ -200,7 +200,7 @@ function Layout() {
         </AnimatePresence>
 
         {/* footer */}
-        <motion.footer 
+        <motion.footer
           initial="hidden" animate="visible" variants={fadeIn} transition={{ delay: 0.6 }}
           className="pt-16 mt-32 border-t border-zinc-100 text-sm text-zinc-400 tracking-tight flex justify-between"
         >
