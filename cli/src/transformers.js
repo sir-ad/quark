@@ -66,21 +66,21 @@ function applySmartQuotes(text) {
   const frenchChars = (text.match(/[éèêëàâäôöûüçœ]/gi) || []).length;
   const germanChars = (text.match(/[äöüß]/gi) || []).length;
   const spanishChars = (text.match(/[ñáéíóú¿¡]/gi) || []).length;
-  
+
   // If French is dominant
   if (frenchChars > 0 && frenchChars >= germanChars && frenchChars >= spanishChars) {
     return text
       .replace(/(^|\s)"(.*?)"(?=\s|$|[.,!?])/g, "$1« $2 »")
       .replace(/(^|\s)'(.*?)'(?=\s|$|[.,!?])/g, "$1‹ $2 ›")
       .replace(/--/g, "\u2014");
-  } 
+  }
   // If German is dominant
   else if (germanChars > 0 && germanChars > frenchChars && germanChars >= spanishChars) {
     return text
       .replace(/(^|\s)"(.*?)"(?=\s|$|[.,!?])/g, "$1„$2“")
       .replace(/(^|\s)'(.*?)'(?=\s|$|[.,!?])/g, "$1‚$2‘")
       .replace(/--/g, "\u2014");
-  } 
+  }
   // If Spanish is dominant
   else if (spanishChars > 0 && spanishChars > frenchChars && spanishChars > germanChars) {
     return text
@@ -104,34 +104,34 @@ function renderMathFormulas(text) {
   let html = text;
   const blockMathRegex = /\$\$\s*([\s\S]*?)\s*\$\$/g;
   const inlineMathRegex = /\$(?!\s)([^$\n]+?)(?<!\s)\$/g;
-  
+
   let hasMath = false;
-  
+
   html = html.replace(blockMathRegex, (match, formula) => {
     hasMath = true;
     const encoded = encodeURIComponent(formula.trim());
     return `<div style="text-align: center; margin: 1em 0;"><img src="https://latex.codecogs.com/svg.image?${encoded}" alt="${formula.replace(/"/g, '&quot;')}" /></div>`;
   });
-  
+
   html = html.replace(inlineMathRegex, (match, formula) => {
     hasMath = true;
     const encoded = encodeURIComponent(formula.trim());
     return `<img style="vertical-align: middle;" src="https://latex.codecogs.com/svg.image?${encoded}" alt="${formula.replace(/"/g, '&quot;')}" />`;
   });
-  
+
   return { hasMath, html };
 }
 
 function isMarkdown(text) {
   // Simple heuristic: contains headings, lists, bold, links, or tables
-  return /^#+\s/m.test(text) || 
-         /\*\*[^*]+\*\*/.test(text) || 
-         /\[.+?\]\(.+?\)/.test(text) || 
-         /^\s*[-*+]\s/m.test(text) || 
-         /^\s*\d+\.\s/m.test(text) ||
-         /`[^`]+`/.test(text) ||
-         /^> /m.test(text) ||
-         (text.includes('|') && /^[-:| ]+$/m.test(text));
+  return /^#+\s/m.test(text) ||
+    /\*\*[^*]+\*\*/.test(text) ||
+    /\[.+?\]\(.+?\)/.test(text) ||
+    /^\s*[-*+]\s/m.test(text) ||
+    /^\s*\d+\.\s/m.test(text) ||
+    /`[^`]+`/.test(text) ||
+    /^> /m.test(text) ||
+    (text.includes('|') && /^[-:| ]+$/m.test(text));
 }
 
 async function convertMarkdownToHTML(text) {
@@ -158,6 +158,24 @@ function normalizeShouting(text) {
 // The master pipeline
 async function processClipboard(text, originalHtml) {
   let result = { changed: false, text: text, html: originalHtml };
+
+  // PRESERVATION HEURISTIC: Yield if high-quality HTML already exists
+  if (originalHtml) {
+    const forensicMarkers = [
+      'data-sheets-value',
+      'data-sheets-userformat',
+      'br-re-calc',
+      'x-office-spreadsheet',
+      '<table>',
+      '<tbody>',
+      '<thead>'
+    ];
+
+    const hasStructure = forensicMarkers.some(marker => originalHtml.toLowerCase().includes(marker));
+    if (hasStructure) {
+      return { changed: false, text: text, html: originalHtml, skipReason: 'Forensic structure detected' };
+    }
+  }
 
   // 0. Case Normalization (Shouting)
   const normalizedText = normalizeShouting(text);

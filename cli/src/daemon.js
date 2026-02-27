@@ -24,6 +24,25 @@ network.init((remoteData) => {
 // Local HTTP Server for MCP Bridge
 // The MCP stdio process will call this to read/write clipboard
 const API_PORT = 14314;
+
+function logEvent(type, message, metadata = {}) {
+  const ts = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
+  const icon = {
+    CLIP: '📋',
+    TRANSFORM: '✨',
+    SYNC: '📡',
+    INFO: '💡',
+    WARN: '⚠️'
+  }[type] || '⚪';
+
+  console.log(`[${ts}] ${icon} ${type}: ${message}`);
+  if (Object.keys(metadata).length > 0) {
+    console.log(`    ${JSON.stringify(metadata)}`);
+  }
+}
+
+let writeGuard = false;
+
 const server = http.createServer((req, res) => {
   if (req.url === '/clipboard' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -35,6 +54,8 @@ const server = http.createServer((req, res) => {
       try {
         const data = JSON.parse(body);
         if (data.text) {
+          logEvent('INFO', 'Writing to clipboard via MCP');
+          writeGuard = true;
           clipboard.writeText(data.text);
           lastClip = clipboard.read();
           network.broadcast(data.text);
@@ -51,23 +72,41 @@ const server = http.createServer((req, res) => {
     res.end();
   }
 });
+
 server.listen(API_PORT, '127.0.0.1', () => {
-  console.log(`🧠 Local API for MCP Bridge listening on port ${API_PORT}`);
+  logEvent('INFO', `Local API for MCP Bridge listening on port ${API_PORT}`);
 });
 
 // Main Clipboard Polling Loop
 const pollInterval = setInterval(async () => {
-  if (isSyncingFromNetwork) return; // Don't re-process network syncs
+  if (isSyncingFromNetwork) return;
 
   const currentClip = clipboard.read();
+
+  // Self-Write Guard: Check if this change was triggered by our own write
+  if (writeGuard) {
+    if (currentClip.text === lastClip.text && currentClip.html === lastClip.html) {
+      writeGuard = false; // Reset guard after confirming parity
+      return;
+    }
+    // If it's different, maybe the OS modified it or user copied something else simultaneously
+    writeGuard = false;
+  }
+
   if (currentClip.text && (currentClip.text !== lastClip.text || currentClip.html !== lastClip.html)) {
     lastClip = currentClip;
-    
+
+    logEvent('CLIP', 'New content detected', {
+      textLength: currentClip.text.length,
+      hasHtml: !!currentClip.html
+    });
+
     // Process through transformers
     const result = await transformers.processClipboard(currentClip.text, currentClip.html);
-    
+
     if (result.changed) {
-      console.log('✨ Transformed clipboard data');
+      logEvent('TRANSFORM', result.skipReason || 'Applying transformations');
+      writeGuard = true;
       if (result.html) {
         clipboard.writeHtml(result.html, result.text);
       } else {
@@ -76,6 +115,9 @@ const pollInterval = setInterval(async () => {
       lastClip = clipboard.read(); // Update to OS state
       network.broadcast(result.text, result.html);
     } else {
+      if (result.skipReason) {
+        logEvent('INFO', `Skipped: ${result.skipReason}`);
+      }
       // No transformation, just broadcast raw text and html to peers
       network.broadcast(currentClip.text, currentClip.html);
     }
@@ -84,13 +126,13 @@ const pollInterval = setInterval(async () => {
 
 // Graceful Shutdown
 function shutdown() {
-  console.log('\n🛑 Shutting down Quark Daemon gracefully...');
+  logEvent('INFO', 'Shutting down Quark Daemon gracefully...');
   clearInterval(pollInterval);
   server.close(() => {
-    console.log('🧠 MCP Bridge API closed.');
+    logEvent('INFO', 'MCP Bridge API closed.');
     process.exit(0);
   });
-  
+
   // Force exit if server takes too long
   setTimeout(() => {
     console.error('⚠️ Forced shutdown due to timeout.');

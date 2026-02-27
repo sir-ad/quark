@@ -12,12 +12,12 @@ function read() {
         const hex = execSync(`osascript -e 'the clipboard as "HTML"' 2>/dev/null`, { encoding: 'utf8' });
         const match = hex.match(/«data HTML([0-9A-F]+)»/i);
         if (match) html = Buffer.from(match[1], 'hex').toString('utf8');
-      } catch(e) {}
+      } catch (e) { }
     } else if (platform === 'linux') {
       text = execSync('xclip -selection clipboard -o', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toString();
       try {
         html = execSync('xclip -selection clipboard -o -t text/html', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toString();
-      } catch(e) {}
+      } catch (e) { }
     } else if (platform === 'win32') {
       text = execSync('powershell -NoProfile -Command "Get-Clipboard -Format Text"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toString().replace(/\r\n$/, '');
       try {
@@ -29,7 +29,7 @@ function read() {
         } else {
           html = rawHtml.replace(/^Version:.*?\r?\nStartHTML:.*?\r?\nEndHTML:.*?\r?\nStartFragment:.*?\r?\nEndFragment:.*?\r?\n/is, '');
         }
-      } catch(e) {}
+      } catch (e) { }
     }
   } catch (e) {
     return { text: '', html: '' };
@@ -41,8 +41,16 @@ function writeHtml(html, plainText) {
   try {
     const platform = os.platform();
     if (platform === 'darwin') {
-      // textutil expects input on stdin
-      execSync('textutil -stdin -format html -convert rtf -stdout | pbcopy', { input: html, stdio: ['pipe', 'ignore', 'ignore'] });
+      // Use hex-encoded AppleScript to set both HTML and Plain Text flavors simultaneously.
+      // This is the only way to ensure Electron apps (Teams/Slack) recognize the grid layout.
+      const hexHtml = Buffer.from(html, 'utf8').toString('hex').toUpperCase();
+      const hexText = Buffer.from(plainText, 'utf8').toString('hex').toUpperCase();
+
+      const script = `
+        set the clipboard to { «class HTML»: «data HTML${hexHtml}», Unicode text: (run script "«data utxt${hexText}»") }
+      `;
+
+      execSync(`osascript -e '${script.replace(/\n/g, ' ')}'`);
     } else if (platform === 'linux') {
       execSync('xclip -selection clipboard -t text/html', { input: html, stdio: ['pipe', 'ignore', 'ignore'] });
     } else if (platform === 'win32') {
