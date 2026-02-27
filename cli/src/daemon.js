@@ -139,7 +139,7 @@ const pollInterval = setInterval(async () => {
 }, 500);
 
 function injectForTarget(app, result) {
-  const markdownApps = ['Obsidian', 'Visual Studio Code', 'Cursor', 'Linear', 'GitHub', 'Teams'];
+  const markdownApps = ['Obsidian', 'Visual Studio Code', 'Cursor', 'Linear', 'GitHub'];
   const isMarkdownTarget = markdownApps.some(m => app && app.includes(m));
 
   if (isMarkdownTarget && result.markdown) {

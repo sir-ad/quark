@@ -239,21 +239,35 @@ async function processClipboard(text, originalHtml, targetApp = null) {
     result.markdown = convertToMarkdown(originalHtml);
   }
 
-  // PRESERVATION HEURISTIC: Yield if high-quality HTML already exists
+  // PRESERVATION HEURISTIC: If high-quality HTML exists, enhance it instead of skipping
   if (originalHtml) {
     const forensicMarkers = [
       'data-sheets-value',
       'data-sheets-userformat',
       'br-re-calc',
       'x-office-spreadsheet',
-      '<table',
-      '<tbody',
-      '<thead'
     ];
+    const hasSpreadsheetMeta = forensicMarkers.some(marker => originalHtml.toLowerCase().includes(marker));
+    const hasTable = originalHtml.toLowerCase().includes('<table');
 
-    const hasStructure = forensicMarkers.some(marker => originalHtml.toLowerCase().includes(marker));
-    if (hasStructure) {
-      return { changed: false, text: text, html: originalHtml, markdown: result.markdown, skipReason: 'Forensic structure detected' };
+    if (hasTable) {
+      // Re-style existing tables with inline CSS for universal rendering
+      let styledHtml = originalHtml
+        .replace(/<table/gi, '<table style="border-collapse: collapse; font-family: sans-serif; font-size: 14px;"')
+        .replace(/<th(?=[ >])/gi, '<th style="border: 1px solid #d1d1d1; padding: 6px 12px; background-color: #f3f2f1;"')
+        .replace(/<td(?=[ >])/gi, '<td style="border: 1px solid #d1d1d1; padding: 6px 12px;"');
+
+      return {
+        changed: true,
+        text: text,
+        html: styledHtml,
+        markdown: convertToMarkdown(styledHtml),
+        skipReason: 'Table re-styled for universal rendering'
+      };
+    }
+
+    if (hasSpreadsheetMeta && !hasTable) {
+      return { changed: false, text: text, html: originalHtml, markdown: result.markdown, skipReason: 'Spreadsheet metadata preserved' };
     }
   }
 
