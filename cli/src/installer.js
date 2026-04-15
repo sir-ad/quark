@@ -44,8 +44,10 @@ function installService() {
       
       fs.mkdirSync(path.dirname(plistPath), { recursive: true });
       fs.writeFileSync(plistPath, plistContent);
-      try { execSync(`launchctl unload ${plistPath}`, { stdio: 'ignore' }); } catch(e) {}
-      execSync(`launchctl load ${plistPath}`);
+      // Use bootstrap/bootout (macOS 12+ preferred API) with load/unload as fallback
+      const uid = execSync('id -u', { encoding: 'utf8' }).trim();
+      try { execSync(`launchctl bootout gui/${uid} ${plistPath}`, { stdio: 'ignore' }); } catch(e) {}
+      execSync(`launchctl bootstrap gui/${uid} ${plistPath}`);
       console.log('✅ macOS LaunchAgent installed and started.');
 
     } else if (platform === 'linux') {
@@ -98,7 +100,8 @@ function uninstallService() {
     if (platform === 'darwin') {
       const plistPath = path.join(os.homedir(), 'Library', 'LaunchAgents', 'com.quark.daemon.plist');
       if (fs.existsSync(plistPath)) {
-        execSync(`launchctl unload ${plistPath}`);
+        const uid = execSync('id -u', { encoding: 'utf8' }).trim();
+        try { execSync(`launchctl bootout gui/${uid} com.quark.daemon`, { stdio: 'ignore' }); } catch(e) {}
         fs.unlinkSync(plistPath);
       }
     } else if (platform === 'linux') {

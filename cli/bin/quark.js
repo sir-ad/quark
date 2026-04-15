@@ -2,16 +2,22 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { installService, uninstallService } = require('../src/installer');
 
 const command = process.argv[2] || 'help';
 const daemonPath = path.join(__dirname, '../src/daemon.js');
 const mcpPath = path.join(__dirname, '../src/mcp.js');
-const pidFile = path.join(__dirname, '../quark.pid');
-const logFile = path.join(__dirname, '../quark.log');
+
+// Bug fix: write state files to ~/.quark/ instead of inside the package dir (which
+// can be read-only when installed globally via npm).
+const quarkDir = path.join(os.homedir(), '.quark');
+fs.mkdirSync(quarkDir, { recursive: true });
+const pidFile = path.join(quarkDir, 'quark.pid');
+const logFile = path.join(quarkDir, 'quark.log');
 
 switch (command) {
-  case 'run':
+  case 'run': {
     console.log(`
       o-------o
       | \\   / |
@@ -23,8 +29,9 @@ switch (command) {
     console.log('💡 Press Ctrl+C to stop. Logs will appear below:');
     require(daemonPath);
     break;
+  }
 
-  case 'logs':
+  case 'logs': {
     if (fs.existsSync(logFile)) {
       console.log('📜 Tailing Quark logs... (Press Ctrl+C to exit)');
       const tail = spawn('tail', ['-f', logFile], { stdio: 'inherit' });
@@ -33,8 +40,9 @@ switch (command) {
       console.log('⚠️ No log file found at ' + logFile);
     }
     break;
+  }
 
-  case 'start':
+  case 'start': {
     console.log(`
       o-------o
       | \\   / |
@@ -49,7 +57,9 @@ switch (command) {
     }
     const out = fs.openSync(logFile, 'a');
     const err = fs.openSync(logFile, 'a');
-    const child = spawn('node', [daemonPath], {
+    // Bug fix: use process.execPath so the correct node binary is used even
+    // inside nvm / fnm / volta managed environments.
+    const child = spawn(process.execPath, [daemonPath], {
       detached: true,
       stdio: ['ignore', out, err]
     });
@@ -58,8 +68,9 @@ switch (command) {
     console.log('✨ Quark is now orbiting your clipboard in the background.');
     console.log('💡 Tip: Run `quark install` to make it start automatically on boot.');
     break;
+  }
 
-  case 'stop':
+  case 'stop': {
     if (fs.existsSync(pidFile)) {
       const pid = fs.readFileSync(pidFile, 'utf8');
       try {
@@ -73,6 +84,7 @@ switch (command) {
       console.log('Quark is not running via manual start.');
     }
     break;
+  }
 
   case 'install':
     installService();
@@ -82,34 +94,33 @@ switch (command) {
     uninstallService();
     break;
 
-  case 'status':
+  case 'status': {
     const isRunning = fs.existsSync(pidFile);
     console.log(`\n🌌 Quark Status`);
     console.log(`----------------`);
     console.log(`Manual Session: ${isRunning ? '🟢 Running' : '🔴 Stopped'}`);
 
     // Check OS Service Status
-    const os = require('os');
     const platform = os.platform();
     let serviceRunning = false;
     try {
       if (platform === 'darwin') {
         const plistPath = path.join(os.homedir(), 'Library', 'LaunchAgents', 'com.quark.daemon.plist');
         if (fs.existsSync(plistPath)) {
-          const out = require('child_process').execSync('launchctl list | grep com.quark.daemon', { encoding: 'utf8' });
-          serviceRunning = out.includes('com.quark.daemon');
+          const svcOut = require('child_process').execSync('launchctl list | grep com.quark.daemon', { encoding: 'utf8' });
+          serviceRunning = svcOut.includes('com.quark.daemon');
         }
       } else if (platform === 'linux') {
         const servicePath = path.join(os.homedir(), '.config', 'systemd', 'user', 'quark.service');
         if (fs.existsSync(servicePath)) {
-          const out = require('child_process').execSync('systemctl --user is-active quark.service', { encoding: 'utf8' });
-          serviceRunning = out.trim() === 'active';
+          const svcOut = require('child_process').execSync('systemctl --user is-active quark.service', { encoding: 'utf8' });
+          serviceRunning = svcOut.trim() === 'active';
         }
       } else if (platform === 'win32') {
         const vbsPath = path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'quark.vbs');
         if (fs.existsSync(vbsPath)) {
-          const out = require('child_process').execSync('wmic process where "CommandLine like \'%daemon.js%\'" get ProcessId', { encoding: 'utf8' });
-          serviceRunning = out.includes('ProcessId') && out.trim().split('\n').length > 1;
+          const svcOut = require('child_process').execSync('wmic process where "CommandLine like \'%daemon.js%\'" get ProcessId', { encoding: 'utf8' });
+          serviceRunning = svcOut.includes('ProcessId') && svcOut.trim().split('\n').length > 1;
         }
       }
     } catch (e) {
@@ -122,6 +133,7 @@ switch (command) {
       console.log(`\n💡 Tip: Run 'quark install' to configure auto-start on boot.`);
     }
     break;
+  }
 
   case 'mcp':
     // Starts the MCP Stdio server (used by LLMs like Claude Desktop)

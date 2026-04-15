@@ -12,7 +12,7 @@ function Home() {
   const [copied, setCopied] = useState(false);
 
   const copyCommand = async () => {
-    await navigator.clipboard.writeText('npx -y @quark.clip/quark install-service');
+    await navigator.clipboard.writeText('npx -y @quark.clip/quark install');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -57,28 +57,43 @@ function Home() {
         <h2 className="text-2xl font-medium tracking-tight text-black">
           installation.
         </h2>
-        <div className="bg-[#fafafa] rounded-2xl p-8 md:p-12 border border-zinc-100">
-          <pre className="font-mono text-xs text-zinc-300 mb-12 leading-tight tracking-widest select-none">
+        <div className="bg-[#fafafa] rounded-2xl p-8 md:p-12 border border-zinc-100 space-y-8">
+          <pre className="font-mono text-xs text-zinc-300 leading-tight tracking-widest select-none">
             {`      o-------o
       | \\   / |
       |   o   |
       | /   \\ |
       o-------o`}
           </pre>
-          <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
-            <code className="font-mono text-sm text-zinc-800 bg-white px-3 py-1.5 rounded-md border border-zinc-200 shadow-sm">
-              npx -y @quark.clip/quark install-service
-            </code>
-            <button
-              onClick={copyCommand}
-              className="text-sm font-medium text-zinc-400 hover:text-black transition-colors"
-            >
-              {copied ? 'copied.' : 'copy command.'}
-            </button>
+
+          {/* one-click curl */}
+          <div>
+            <p className="text-xs text-zinc-400 uppercase tracking-widest mb-3">mac & linux — one-click</p>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white rounded-xl border border-zinc-200 px-4 py-3 shadow-sm">
+              <code className="font-mono text-sm text-zinc-800">
+                curl -fsSL https://raw.githubusercontent.com/sir-ad/quark/main/install.sh | sh
+              </code>
+            </div>
+          </div>
+
+          {/* npx fallback */}
+          <div>
+            <p className="text-xs text-zinc-400 uppercase tracking-widest mb-3">or run without installing</p>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white rounded-xl border border-zinc-200 px-4 py-3 shadow-sm">
+              <code className="font-mono text-sm text-zinc-800">
+                npx -y @quark.clip/quark install
+              </code>
+              <button
+                onClick={copyCommand}
+                className="text-sm font-medium text-zinc-400 hover:text-black transition-colors shrink-0"
+              >
+                {copied ? 'copied.' : 'copy.'}
+              </button>
+            </div>
           </div>
         </div>
         <p className="text-sm text-zinc-400 tracking-tight">
-          requires node.js. runs silently on mac, windows, and linux. open source. <Link to="/docs" className="text-black hover:underline">read the docs.</Link>
+          requires node.js 18+. runs silently on mac, windows, and linux. open source. <Link to="/docs" className="text-black hover:underline">read the docs.</Link>
         </p>
       </motion.section>
     </div>
@@ -143,23 +158,35 @@ function Docs() {
         <div className="space-y-4 text-zinc-500 leading-relaxed tracking-tight">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-100 pb-4">
             <code className="text-sm font-mono text-zinc-800">quark start</code>
-            <span className="sm:col-span-2">runs the daemon in the current terminal session.</span>
+            <span className="sm:col-span-2">starts the daemon in the background for the current session.</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-100 pb-4">
+            <code className="text-sm font-mono text-zinc-800">quark run</code>
+            <span className="sm:col-span-2">starts the daemon in the foreground with live logs. good for debugging.</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-100 pb-4">
             <code className="text-sm font-mono text-zinc-800">quark install</code>
-            <span className="sm:col-span-2">installs quark as a native background service (launchd, systemd, or windows startup).</span>
+            <span className="sm:col-span-2">installs quark as a native os service that auto-starts on boot (launchd, systemd, or windows startup).</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-100 pb-4">
             <code className="text-sm font-mono text-zinc-800">quark stop</code>
-            <span className="sm:col-span-2">stops a manually started session.</span>
+            <span className="sm:col-span-2">stops a manually started background session.</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-100 pb-4">
             <code className="text-sm font-mono text-zinc-800">quark uninstall</code>
-            <span className="sm:col-span-2">removes the background service from your os.</span>
+            <span className="sm:col-span-2">removes the native os background service.</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-100 pb-4">
             <code className="text-sm font-mono text-zinc-800">quark status</code>
-            <span className="sm:col-span-2">checks if the daemon is running and shows log locations.</span>
+            <span className="sm:col-span-2">shows whether the daemon is running and where logs are stored.</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-100 pb-4">
+            <code className="text-sm font-mono text-zinc-800">quark logs</code>
+            <span className="sm:col-span-2">tails the background daemon log in real time.</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4">
+            <code className="text-sm font-mono text-zinc-800">quark mcp</code>
+            <span className="sm:col-span-2">starts the mcp stdio server. used by claude desktop and cursor to read/write your clipboard.</span>
           </div>
         </div>
       </motion.section>
