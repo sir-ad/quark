@@ -88,7 +88,7 @@ function broadcast(text, html = null) {
     nodeId: NODE_ID,
     payload: { text, html }
   });
-  
+
   peers.forEach((ws) => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(payload);
@@ -96,4 +96,11 @@ function broadcast(text, html = null) {
   });
 }
 
-module.exports = { init, broadcast };
+function shutdown() {
+  peers.forEach((ws) => ws.terminate());
+  peers.clear();
+  if (wss) wss.close();
+  if (bonjourInstance) bonjourInstance.destroy();
+}
+
+module.exports = { init, broadcast, shutdown };

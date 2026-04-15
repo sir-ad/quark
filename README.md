@@ -40,6 +40,20 @@ The operating system clipboard is fundamentally broken and stuck in the past:
 
 No `.exe` files. No `.dmg` files. Just pure, cross-platform JavaScript.
 
+### One-Click Install (macOS / Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sir-ad/quark/main/install.sh | sh
+```
+
+### One-Click Install (Windows PowerShell)
+
+```powershell
+iex (irm https://raw.githubusercontent.com/sir-ad/quark/main/install.ps1)
+```
+
+### Manual install
+
 ```bash
 # Run instantly without installing (Temporary Session)
 npx -y @quark.clip/quark start

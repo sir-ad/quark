@@ -160,6 +160,7 @@ function injectForTarget(app, result) {
 function shutdown() {
   logEvent('INFO', 'Shutting down Quark Daemon gracefully...');
   clearInterval(pollInterval);
+  network.shutdown();
   server.close(() => {
     logEvent('INFO', 'MCP Bridge API closed.');
     process.exit(0);
